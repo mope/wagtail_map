@@ -151,7 +151,7 @@ class HomePage(Page):
 
 class EventIndexPage(Page, Locatable):
     def get_context(self, request, *args, **kwargs):
-        q = request.GET.get('q')
+        q = request.GET.get('q', '')
         if q:
             pages = self.search_children_locations(q, EventPage)
         else:
