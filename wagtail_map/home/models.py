@@ -111,7 +111,8 @@ class Locatable(models.Model):
     def save_location(self):
         if self.location_name:
             self.location = Location.objects.get_or_create(
-                name__iexact=self.location_name
+                # iexact doesn't work with get_or_create :(
+                name=self.location_name.upper()
             )[0]
             self.location.save()
         if not self.location_name and self.location:
@@ -126,17 +127,15 @@ class Locatable(models.Model):
         location.geocode()
         return location.find_nearby_locations()
 
-    @classmethod
-    def search_page_locations(cls, q):
-        return cls.objects.filter(
-            location__in=cls.search_locations(q)
-        )
-
-    def search_children_locations(self, q):
-        return self.search_page_locations(q).child_of(self)
+    def search_children_locations(self, q, model):
+        return model.objects.filter(
+            location__in=self.search_locations(q)
+        ).child_of(self).live()
 
     def search_sibling_locations(self, q):
-        return self.search_page_locations(q).sibling_of(self)
+        return self.__class__.objects.filter(
+            location__in=self.search_locations(q)
+        ).sibling_of(self).live()
 
     panels = [
         FieldPanel('location_name')
@@ -152,13 +151,16 @@ class HomePage(Page):
 
 class EventIndexPage(Page, Locatable):
     def get_context(self, request, *args, **kwargs):
+        q = request.GET.get('q')
+        if q:
+            pages = self.search_children_locations(q, EventPage)
+        else:
+            pages = EventPage.objects.child_of(self).live()
         return {
             'self': self,
             'request': request,
             'GOOGLE_MAPS_KEY': GOOGLE_MAPS_KEY,
-            'pages': self.search_children_locations(
-                request.GET.get('q')
-            )
+            'pages': pages
         }
 
     def save(self, *args, **kwargs):
@@ -178,7 +180,7 @@ class EventPage(Page, Locatable):
             'request': request,
             'GOOGLE_MAPS_KEY': GOOGLE_MAPS_KEY,
             'pages': self.search_sibling_locations(
-                request.GET.get('q')
+                request.GET.get('q', self.location_name)
             )
         }
 

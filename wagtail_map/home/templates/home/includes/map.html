@@ -3,12 +3,12 @@
       <script type="text/javascript">
           var pages = [];
           {% for page in pages %}
-            page.push([
+            pages.push([
                 {{ page.location.latitude }},
                 {{ page.location.longitude }},
                 "{{ page.title }}",
                 "{{ page.text }}"
-            )]
+            ]);
           {% endfor %}
 
           var map = undefined;
@@ -21,6 +21,11 @@
                   map: map,
                   title: title,
                   desc: "<h3>" + title + "</h3>" + text
+              });
+              var infowindow = new google.maps.InfoWindow();
+              google.maps.event.addListener(marker, 'click', function() {
+                  infowindow.setContent(marker.desc);
+                  infowindow.open(map,marker);
               });
               markers.push(marker)
           }
@@ -35,7 +40,7 @@
               map = new google.maps.Map(document.getElementById('map-canvas'),
                                         mapOptions);
 
-              var infowindow = new google.maps.InfoWindow();
+
 
               pages.forEach(function(page) {
                   addMarker.apply(undefined, page);
