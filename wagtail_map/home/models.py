@@ -14,16 +14,15 @@ GOOGLE_MAPS_KEY = 'YOUR_KEY_HERE'
 
 
 class Location(models.Model):
+    class CouldNotGeocode(Exception):
+        pass
+
     SEARCH_RADIUS = 10
     COMPASS_BEARING = {
         'NORTH': 0,
-        'NORTHEAST': 45,
         'EAST': 90,
-        'SOUTHEAST': 135,
         'SOUTH': 180,
-        'SOUTHWEST': 225,
         'WEST': 270,
-        'NORTHWEST': 315
     }
 
     name = models.CharField(max_length=255,
@@ -76,23 +75,21 @@ class Location(models.Model):
         return self.vincenty_filter(bb_locations, self.SEARCH_RADIUS)
 
     def geocode(self):
-        try:
-            geocoder_for_service = get_geocoder_for_service(GEOCODING_SERVICE)
-            geocoder = geocoder_for_service(api_key=GOOGLE_MAPS_KEY)
-            geocoded_location = geocoder.geocode(self.name)
-            if geocoded_location:
-                self.latitude = geocoded_location.latitude
-                self.longitude = geocoded_location.longitude
-                return True
-            else:
-                # Could not geocode the input
-                return False
-        except GeocoderUnavailable:
-            return False
+        geocoder_for_service = get_geocoder_for_service(GEOCODING_SERVICE)
+        geocoder = geocoder_for_service(api_key=GOOGLE_MAPS_KEY)
+        geocoded_location = geocoder.geocode(self.name)
+        if geocoded_location:
+            self.latitude = geocoded_location.latitude
+            self.longitude = geocoded_location.longitude
+        else:
+            raise self.CouldNotGeocode
 
     def save(self, *args, **kwargs):
-        if self.geocode():
+        try:
+            self.geocode()
             super(Location, self).save(*args, **kwargs)
+        except GeocoderUnavailable, self.CouldNotGeocode:
+            pass
 
 
 class Locatable(models.Model):
